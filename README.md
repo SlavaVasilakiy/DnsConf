@@ -1,5 +1,20 @@
 
 # DNS Block&Redirect Configurer
+**Allows to set Redirect and Block rules to your Cloudflare and NextDNS accounts.**
+
+**Ready-to-run via GitHub Actions.**
+
+[General comparison: Cloudflare vs NextDNS](#cloudflare-vs-nextdns)
+
+[Setup credentials: Cloudflare](#cloudflare-credentials-setup)
+
+[Setup credentials: NextDNS](#nextdns-credentials-setup)
+
+[Setup profile](#setup-profile)
+
+[Setup data sources](#setup-data-sources)
+
+[GitHub Actions](#github-actions-setup)
 
 ## Cloudflare vs NextDNS
 
@@ -12,9 +27,7 @@ Both providers have free plans, but there are some limitations
 + 300 000 DNS requests per month (still more than enough for personal use)
 + Slow API speed is restricted by 60 requests per minute. Takes significantly more time for script to save settings
 
-## Setup Credentials
-
-### Cloudflare
+### Cloudflare credentials setup
 1) After signing up into a **Cloudflare**, navigate to _Zero Trust_ tab and create an account.
 - Free Plan has decent limits, so just choose it.
 - Skip providing payment method step by choosing _Cancel and exit_ (top right corner)
@@ -34,18 +47,17 @@ Set API token to **environment variable** `AUTH_SECRET`
 
 Set **Account ID** to **environment variable** `CLIENT_ID`
 
-### NextDNS
-1) Generate **API KEY**, from https://my.nextdns.io/account
-   Set **API KEY** to **environment variable** `AUTH_SECRET`
+### NextDNS credentials setup
+1) Generate **API KEY**, from https://my.nextdns.io/account and set as **environment variable** `AUTH_SECRET`
 
 2) Click on **NextDNS** logo. On the opened page, copy ID from Endpoints section.
-   Set ID to **environment variable** `CLIENT_ID`
+   Set it as **environment variable** `CLIENT_ID`
 
 
-## Choose profile
+## Setup profile
 Set **environment variable** `DNS` with DNS provider name (**Cloudflare** or **NextDNS**)
 
-## Choose data sources
+## Setup data sources
 Each data source must be a link to a hosts file, e.g. https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hosts/hosts
 
 You can provide multiple sources split by coma:
@@ -85,7 +97,7 @@ will keep only `domain.to.block` and `another.to.block` for the further block pr
 
 ## Script Behaviour
 ### Cloudflare
-Previously generated data will be removed. Script recognizes old data by two marks:
+Previously generated data will be removed. Script recognizes old data by marks:
 
 
 + Name prefix for List: **_Blocked websites by script_** and **_Override websites by script_**
@@ -110,7 +122,7 @@ For `BLOCK`:
 
 Previously generated data is removed **ONLY** when both `BLOCK` and `REDIRECT` sources were not provided.
 
-## Github Actions setup
+## GitHub Actions setup
 1) Fork repository
 2) Go _Settings_ => _Environments_
 3) Create _New environment_ with name `DNS`
