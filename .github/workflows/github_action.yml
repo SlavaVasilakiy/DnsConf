@@ -1,22 +1,21 @@
-name: DNS Block&Redirect Configurer cron task
+name: DNS Block & Redirect Configurer
 
 on:
   schedule:
-    - cron: '30 1 * * *' # 04:30 MSK (01:30 UTC)
+    - cron: '30 1 * * *' # 01:30 UTC
   workflow_dispatch:
 
 jobs:
-  build:
+  update-dns:
     runs-on: ubuntu-latest
-    environment: DNS
+    environment: Configure DNS
 
     env:
       DNS: ${{ vars.DNS }}
-      BLOCK: ${{ vars.BLOCK }}
       REDIRECT: ${{ vars.REDIRECT }}
 
-      CLIENT_ID: ${{ secrets.CLIENT_ID }}
-      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      NEXTDNS_API_KEY: ${{ secrets.NEXTDNS_API_KEY }}
+      NEXTDNS_PROFILE_ID: ${{ secrets.NEXTDNS_PROFILE_ID }}
 
       TZ: Europe/Moscow
 
@@ -31,10 +30,14 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Build with Maven
+      - name: Build
         run: mvn -B clean package
 
-      - name: Run application
+      - name: Debug env (one-time check)
         run: |
-          echo "Starting application..."
-          java --enable-preview -jar target/*.jar
+          echo "DNS=$DNS"
+          echo "API_KEY_LEN=${#NEXTDNS_API_KEY}"
+          echo "PROFILE_ID_LEN=${#NEXTDNS_PROFILE_ID}"
+
+      - name: Run application
+        run: java --enable-preview -jar target/*.jar
