@@ -83,9 +83,12 @@ public class NextDnsRewriteService {
             boolean success = false;
             while (!success) {
                 try {
-                    // лямбда возвращает null для соответствия Function<D,R>
                     NextDnsRateLimitedApiProcessor.callApi(List.of(item), x -> {
-                        saver.save(x);
+                        try {
+                            saver.save(x);
+                        } catch (Exception ex) {
+                            throw new RuntimeException(ex);
+                        }
                         return null;
                     });
                     success = true;
@@ -102,7 +105,6 @@ public class NextDnsRewriteService {
             }
         }
     }
-
 
     /** Functional interface для обработки одного элемента */
     @FunctionalInterface
