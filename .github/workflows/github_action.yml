@@ -8,7 +8,7 @@ on:
 jobs:
   update-dns:
     runs-on: ubuntu-latest
-    environment: Configure DNS
+    environment: DNS
 
     env:
       DNS: ${{ vars.DNS }}
