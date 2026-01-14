@@ -26,8 +26,7 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
     private final NextDnsRewriteService nextDnsRewriteService;
     private final NextDnsDenyService nextDnsDenyService;
 
-    // задержка между **каждым запросом** к API
-    private static final long THROTTLE_MS = 3000;
+    private static final long THROTTLE_MS = 3000; // пауза между отдельными запросами
 
     @Override
     public void run() {
