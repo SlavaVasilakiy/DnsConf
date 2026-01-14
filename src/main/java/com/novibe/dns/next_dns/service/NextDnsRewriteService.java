@@ -83,7 +83,11 @@ public class NextDnsRewriteService {
             boolean success = false;
             while (!success) {
                 try {
-                    NextDnsRateLimitedApiProcessor.callApi(List.of(item), saver::save); // 1 элемент
+                    // лямбда возвращает null для соответствия Function<D,R>
+                    NextDnsRateLimitedApiProcessor.callApi(List.of(item), x -> {
+                        saver.save(x);
+                        return null;
+                    });
                     success = true;
                     Thread.sleep(THROTTLE_MS);
                 } catch (Exception e) {
@@ -98,6 +102,7 @@ public class NextDnsRewriteService {
             }
         }
     }
+
 
     /** Functional interface для обработки одного элемента */
     @FunctionalInterface
