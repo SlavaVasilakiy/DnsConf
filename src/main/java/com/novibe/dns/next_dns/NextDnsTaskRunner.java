@@ -26,16 +26,19 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
     private final NextDnsRewriteService nextDnsRewriteService;
     private final NextDnsDenyService nextDnsDenyService;
 
+    private static final int BATCH_SIZE = 50;      // размер порции для API
+    private static final long THROTTLE_MS = 4000;  // пауза между успешными запросами
+
     @Override
     public void run() {
-
         Log.global("NextDNS");
         Log.common("""
-        Script behaviour: old block/redirect settings are about to be updated via provided block/redirect sources.
-        If no sources provided, then all NextDNS settings will be removed.
-        If provided only one type of sources, related settings will be updated; another type remain untouched.
-        NextDNS API rate limiter reset config: 60 seconds after the last request""");
+            Script behaviour: old block/redirect settings are about to be updated via provided block/redirect sources.
+            If no sources provided, then all NextDNS settings will be removed.
+            If provided only one type of sources, related settings will be updated; another type remain untouched.
+            NextDNS API rate limiter reset config: 60 seconds after the last request""");
 
+        // ----------------- BLOCK -----------------
         List<String> blockSources = EnvParser.parse(BLOCK);
         if (!blockSources.isEmpty()) {
             Log.step("Obtain block lists from %s sources".formatted(blockSources.size()));
@@ -44,28 +47,30 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
             List<String> filteredBlocklist = nextDnsDenyService.dropExistingDenys(blocks);
             Log.common("Prepared %s domains to block".formatted(filteredBlocklist.size()));
             Log.step("Save denylist");
-            nextDnsDenyService.saveDenyList(filteredBlocklist);
+
+            processInBatches(filteredBlocklist, nextDnsDenyService::saveDenyList);
         } else {
             Log.fail("No block sources provided");
         }
 
+        // ----------------- REDIRECT -----------------
         List<String> rewriteSources = EnvParser.parse(REDIRECT);
         if (!rewriteSources.isEmpty()) {
-
-            Log.step("Obtain rewrite lists from %s sources".formatted(blockSources.size()));
+            Log.step("Obtain rewrite lists from %s sources".formatted(rewriteSources.size()));
             List<HostsOverrideListsLoader.BypassRoute> overrides = overrideListsLoader.fetchWebsites(rewriteSources);
-
             Log.step("Prepare rewrites");
+
             Map<String, CreateRewriteDto> requests = nextDnsRewriteService.buildNewRewrites(overrides);
             List<CreateRewriteDto> createRewriteDtos = nextDnsRewriteService.cleanupOutdated(requests);
             Log.common("Prepared %s domains to rewrite".formatted(requests.size()));
-
             Log.step("Save rewrites");
-            nextDnsRewriteService.saveRewrites(createRewriteDtos);
+
+            processInBatches(createRewriteDtos, nextDnsRewriteService::saveRewrites);
         } else {
             Log.fail("No rewrite sources provided");
         }
 
+        // ----------------- REMOVE -----------------
         if (blockSources.isEmpty() && rewriteSources.isEmpty()) {
             Log.step("Remove settings");
             nextDnsDenyService.removeAll();
@@ -75,4 +80,35 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
         Log.global("FINISHED");
     }
 
+    /**
+     * Batch processor с retry при 429
+     */
+    private <T> void processInBatches(List<T> items, BatchSaver<T> saver) {
+        for (int i = 0; i < items.size(); i += BATCH_SIZE) {
+            List<T> batch = items.subList(i, Math.min(i + BATCH_SIZE, items.size()));
+            boolean success = false;
+            while (!success) {
+                try {
+                    saver.save(batch);
+                    success = true;
+                    Thread.sleep(THROTTLE_MS); // throttle между успешными запросами
+                } catch (NextDnsRateLimitException e) {
+                    long waitSec = e.getRetryAfter() > 0 ? e.getRetryAfter() : 60;
+                    Log.step("Rate limit hit, waiting %s seconds".formatted(waitSec));
+                    try { Thread.sleep(waitSec * 1000L); } catch (InterruptedException ignored) {}
+                } catch (Exception ex) {
+                    Log.fail("Failed to save batch: " + ex.getMessage());
+                    throw new RuntimeException(ex);
+                }
+            }
+        }
+    }
+
+    /**
+     * Functional interface для batch saver
+     */
+    @FunctionalInterface
+    private interface BatchSaver<T> {
+        void save(List<T> batch) throws Exception;
+    }
 }
