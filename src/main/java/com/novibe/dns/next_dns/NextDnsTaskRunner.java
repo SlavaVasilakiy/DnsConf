@@ -92,13 +92,16 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
                     saver.save(batch);
                     success = true;
                     Thread.sleep(THROTTLE_MS); // throttle между успешными запросами
-                } catch (NextDnsRateLimitException e) {
-                    long waitSec = e.getRetryAfter() > 0 ? e.getRetryAfter() : 60;
-                    Log.step("Rate limit hit, waiting %s seconds".formatted(waitSec));
-                    try { Thread.sleep(waitSec * 1000L); } catch (InterruptedException ignored) {}
-                } catch (Exception ex) {
-                    Log.fail("Failed to save batch: " + ex.getMessage());
-                    throw new RuntimeException(ex);
+                } catch (Exception e) {
+                    if (e.getMessage() != null && e.getMessage().contains("429")) {
+                        Log.step("Rate limit hit, waiting 60 seconds");
+                        try {
+                            Thread.sleep(60000L);
+                        } catch (InterruptedException ignored) {}
+                    } else {
+                        Log.fail("Failed to save batch: " + e.getMessage());
+                        throw new RuntimeException(e);
+                    }
                 }
             }
         }
