@@ -26,8 +26,8 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
     private final NextDnsRewriteService nextDnsRewriteService;
     private final NextDnsDenyService nextDnsDenyService;
 
-    private static final int BATCH_SIZE = 50;      // размер порции для API
-    private static final long THROTTLE_MS = 4000;  // пауза между успешными запросами
+    // задержка между **каждым запросом** к API
+    private static final long THROTTLE_MS = 3000;
 
     @Override
     public void run() {
@@ -48,7 +48,7 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
             Log.common("Prepared %s domains to block".formatted(filteredBlocklist.size()));
             Log.step("Save denylist");
 
-            processInBatches(filteredBlocklist, nextDnsDenyService::saveDenyList);
+            processElementWise(filteredBlocklist, nextDnsDenyService::saveDomain);
         } else {
             Log.fail("No block sources provided");
         }
@@ -65,7 +65,7 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
             Log.common("Prepared %s domains to rewrite".formatted(requests.size()));
             Log.step("Save rewrites");
 
-            processInBatches(createRewriteDtos, nextDnsRewriteService::saveRewrites);
+            processElementWise(createRewriteDtos, nextDnsRewriteService::saveRewrite);
         } else {
             Log.fail("No rewrite sources provided");
         }
@@ -81,25 +81,22 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
     }
 
     /**
-     * Batch processor с retry при 429
+     * Обработка каждого элемента с задержкой и retry при 429
      */
-    private <T> void processInBatches(List<T> items, BatchSaver<T> saver) {
-        for (int i = 0; i < items.size(); i += BATCH_SIZE) {
-            List<T> batch = items.subList(i, Math.min(i + BATCH_SIZE, items.size()));
+    private <T> void processElementWise(List<T> items, ElementSaver<T> saver) {
+        for (T item : items) {
             boolean success = false;
             while (!success) {
                 try {
-                    saver.save(batch);
+                    saver.save(item);
                     success = true;
-                    Thread.sleep(THROTTLE_MS); // throttle между успешными запросами
+                    Thread.sleep(THROTTLE_MS); // пауза после каждого запроса
                 } catch (Exception e) {
                     if (e.getMessage() != null && e.getMessage().contains("429")) {
                         Log.step("Rate limit hit, waiting 60 seconds");
-                        try {
-                            Thread.sleep(60000L);
-                        } catch (InterruptedException ignored) {}
+                        try { Thread.sleep(60000L); } catch (InterruptedException ignored) {}
                     } else {
-                        Log.fail("Failed to save batch: " + e.getMessage());
+                        Log.fail("Failed to save item: " + e.getMessage());
                         throw new RuntimeException(e);
                     }
                 }
@@ -107,11 +104,8 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
         }
     }
 
-    /**
-     * Functional interface для batch saver
-     */
     @FunctionalInterface
-    private interface BatchSaver<T> {
-        void save(List<T> batch) throws Exception;
+    private interface ElementSaver<T> {
+        void save(T item) throws Exception;
     }
 }
