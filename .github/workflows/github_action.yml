@@ -13,6 +13,7 @@ jobs:
     env:
       DNS: ${{ vars.DNS }}
       REDIRECT: ${{ vars.REDIRECT }}
+      BLOCK: ${{ vars.BLOCK }}
 
       NEXTDNS_API_KEY: ${{ secrets.NEXTDNS_API_KEY }}
       NEXTDNS_PROFILE_ID: ${{ secrets.NEXTDNS_PROFILE_ID }}
