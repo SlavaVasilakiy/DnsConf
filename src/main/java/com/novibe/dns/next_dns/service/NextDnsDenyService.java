@@ -29,10 +29,10 @@ public class NextDnsDenyService {
         return newDenyList;
     }
 
-    public void saveDenyList(List<String> newDenylist) {
-        List<CreateDenyDto> createRequests = newDenylist.stream().map(CreateDenyDto::new).toList();
-        Log.io("Saving new denylist to NextDNS...");
-        NextDnsRateLimitedApiProcessor.callApi(createRequests, nextDnsDenyClient::saveDeny);
+    /** Сохранение одного домена */
+    public void saveDomain(String domain) throws Exception {
+        CreateDenyDto dto = new CreateDenyDto(domain);
+        NextDnsRateLimitedApiProcessor.callApi(List.of(dto), nextDnsDenyClient::saveDeny);
     }
 
     public void removeAll() {
@@ -42,5 +42,4 @@ public class NextDnsDenyService {
         Log.io("Removing denylist from NextDNS");
         NextDnsRateLimitedApiProcessor.callApi(ids, nextDnsDenyClient::deleteDenyById);
     }
-
 }
