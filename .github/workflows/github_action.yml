@@ -15,8 +15,8 @@ jobs:
       REDIRECT: ${{ vars.REDIRECT }}
       BLOCK: ${{ vars.BLOCK }}
 
-      NEXTDNS_API_KEY: ${{ secrets.NEXTDNS_API_KEY }}
-      NEXTDNS_PROFILE_ID: ${{ secrets.NEXTDNS_PROFILE_ID }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      CLIENT_ID: ${{ secrets.CLIENT_ID }}
 
       TZ: Europe/Moscow
 
@@ -37,8 +37,10 @@ jobs:
       - name: Debug env (one-time check)
         run: |
           echo "DNS=$DNS"
-          echo "API_KEY_LEN=${#NEXTDNS_API_KEY}"
-          echo "PROFILE_ID_LEN=${#NEXTDNS_PROFILE_ID}"
+          echo "AUTH_SECRET=${#AUTH_SECRET}"
+          echo "CLIENT_ID=${#CLIENT_ID}"
+          echo "REDIRECT=${#REDIRECT}"
+          echo "BLOCK=${#BLOCK}"
 
       - name: Run application
         run: java --enable-preview -jar target/*.jar
